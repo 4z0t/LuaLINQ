@@ -29,12 +29,9 @@
  * software.
  *]]
 
----@diagnostic disable: empty-block
-
 ---#region Upvalues
 local _setmetatable = setmetatable
 local TableInsert = table.insert
-local _getmetatable = getmetatable
 local _next = next
 local _inext = ipairs {}
 local pairs = pairs
