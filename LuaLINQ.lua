@@ -499,7 +499,7 @@ end
 ---@class Enumerator
 ---@field iterator (fun(t:table, k:any):any, any)
 ---@field transformer (fun(t:table):table)
-EnumeratorMeta = {}
+local EnumeratorMeta = {}
 EnumeratorMeta.__index = EnumeratorMeta
 
 ---@generic K,V
@@ -1099,7 +1099,7 @@ end
 ---@field t table
 ---@field iterator (fun(t:table, k:any):any, any)
 ---@field transformer (fun(t:table):table)
-EnumerableMeta = {}
+local EnumerableMeta = {}
 EnumerableMeta.__index = EnumerableMeta
 
 ---@generic K,V,R
@@ -1567,3 +1567,8 @@ end
 ---#endregion
 
 ---#endregion
+
+return {
+    Enumerable = EnumerableMeta,
+    Enumerator = EnumeratorMeta,
+}
