@@ -527,13 +527,12 @@ local function EnumeratorCreate(iterator, transformer)
     return _setmetatable(
         {
             iterator = iterator,
-            transformer = transformer
+            transformer = transformer or false
         },
         EnumeratorMeta)
 end
 
 EnumeratorMeta.Create = EnumeratorCreate
-IPairsEnumerator = EnumeratorCreate(_inext)
 
 ---Filters elements in sequence by given condition.
 ---@generic K,V
@@ -1111,8 +1110,8 @@ local function EnumerableCreate(t, iterator, transformer)
     return _setmetatable(
         {
             t = t,
-            iterator = iterator or _next,
-            transformer = transformer
+            iterator = iterator or _inext,
+            transformer = transformer or false
         },
         EnumerableMeta)
 end
