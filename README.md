@@ -176,6 +176,7 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:GroupBy(selector)`        | Groups elements by key selector                                                            |
 | `:Sort(comparer?)`          | Sorts elements in sequence                                                                 |
 | `:AsSet()`                  | Returns set of elements                                                                    |
+| `:SelectMany(selector?)`    | Projects each element of a sequence and flattens the resulting sequences into one sequence |
 | `:Execute(func)`            | Executes a function for each element                                                       |
 | `:Min(comparer?)`           | Finds minimum element                                                                      |
 | `:Max(comparer?)`           | Finds maximum element                                                                      |
@@ -195,34 +196,35 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 
 ## Enumerable
 
-| Method                      | Description                                                          |
-| --------------------------- | -------------------------------------------------------------------- |
-| `:__call()`                 | Returns iterator and transformed table for iteration within for loop |
-| `:Clone()`                  | Creates copy of current Enumerable                                   |
-| `:Where(condition)`         | Filters elements based on a predicate                                |
-| `:Select(selector)`         | Projects each element into a new form                                |
-| `:Keys()`                   | Returns keys of the table                                            |
-| `:Distinct()`               | Returns distinct elements from the sequence keeping original order   |
-| `:Select(selector)`         | Projects each element into a new form                                |
-| `:Keys()`                   | Returns keys of the table                                            |
-| `:Distinct()`               | Returns distinct elements from the sequence keeping original order   |
-| `:Foreach(func)`            | Executes a function for each element                                 |
-| `:Reverse()`                | Reverses the sequence                                                |
-| `:GroupBy(selector)`        | Groups elements by key selector                                      |
-| `:Sort(comparer?)`          | Sorts elements in sequence                                           |
-| `:AsSet()`                  | Returns set of elements                                              |
-| `:Execute(func)`            | Executes a function for each element                                 |
-| `:Cache()`                  | Creates new Enumerable with cached table after transformation        |
-| `:First(condition?)`        | Returns first element that matches condition                         |
-| `:Last(condition?)`         | Returns last element that matches condition                          |
-| `:Average()`                | Calculates average of numeric sequence                               |
-| `:Count(condition?)`        | Counts elements matching condition                                   |
-| `:Reduce(reducer, initial)` | Applies a function to each element and accumulates the result        |
-| `:Sum()`                    | Calculates sum of numeric sequence                                   |
-| `:Contains(value)`          | Checks if sequence contains a specific value                         |
-| `:Min(comparer?)`           | Finds minimum element                                                |
-| `:Max(comparer?)`           | Finds maximum element                                                |
-| `:All(condition?)`          | Checks if all elements match condition                               |
-| `:Any(condition?)`          | Checks if any element matches condition                              |
-| `:ToArray()`                | Converts sequence to array                                           |
-| `:ToTable(selector?)`       | Converts sequence to table with optional key-value selector          |
+| Method                      | Description                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| `:__call()`                 | Returns iterator and transformed table for iteration within for loop                       |
+| `:Clone()`                  | Creates copy of current Enumerable                                                         |
+| `:Where(condition)`         | Filters elements based on a predicate                                                      |
+| `:Select(selector)`         | Projects each element into a new form                                                      |
+| `:Keys()`                   | Returns keys of the table                                                                  |
+| `:Distinct()`               | Returns distinct elements from the sequence keeping original order                         |
+| `:Select(selector)`         | Projects each element into a new form                                                      |
+| `:Keys()`                   | Returns keys of the table                                                                  |
+| `:Distinct()`               | Returns distinct elements from the sequence keeping original order                         |
+| `:Foreach(func)`            | Executes a function for each element                                                       |
+| `:Reverse()`                | Reverses the sequence                                                                      |
+| `:GroupBy(selector)`        | Groups elements by key selector                                                            |
+| `:Sort(comparer?)`          | Sorts elements in sequence                                                                 |
+| `:AsSet()`                  | Returns set of elements                                                                    |
+| `:SelectMany(selector?)`    | Projects each element of a sequence and flattens the resulting sequences into one sequence |
+| `:Execute(func)`            | Executes a function for each element                                                       |
+| `:Cache()`                  | Creates new Enumerable with cached table after transformation                              |
+| `:First(condition?)`        | Returns first element that matches condition                                               |
+| `:Last(condition?)`         | Returns last element that matches condition                                                |
+| `:Average()`                | Calculates average of numeric sequence                                                     |
+| `:Count(condition?)`        | Counts elements matching condition                                                         |
+| `:Reduce(reducer, initial)` | Applies a function to each element and accumulates the result                              |
+| `:Sum()`                    | Calculates sum of numeric sequence                                                         |
+| `:Contains(value)`          | Checks if sequence contains a specific value                                               |
+| `:Min(comparer?)`           | Finds minimum element                                                                      |
+| `:Max(comparer?)`           | Finds maximum element                                                                      |
+| `:All(condition?)`          | Checks if all elements match condition                                                     |
+| `:Any(condition?)`          | Checks if any element matches condition                                                    |
+| `:ToArray()`                | Converts sequence to array                                                                 |
+| `:ToTable(selector?)`       | Converts sequence to table with optional key-value selector                                |
