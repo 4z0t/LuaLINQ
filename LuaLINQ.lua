@@ -235,6 +235,162 @@ local function ReverseTransformer(iterator, transformer)
     end
 end
 
+---@generic K,V,R
+---@param iterator fun(t:table, k:K):K,V
+---@param outTable table
+---@param outKey any
+---@param inTable table
+---@param inKey any
+---@param index number?
+---@return any # outKey
+---@return table? # inTable
+---@return any # inKey
+---@return number? # index
+---@return any # value
+local function IterateMany(iterator, outTable, outKey, inTable, inKey, index)
+    if outKey == nil then
+        outKey, inTable = iterator(outTable, outKey)
+        inKey = nil
+        index = 0
+    end
+
+    while true do
+        local v
+        inKey, v = _next(inTable, inKey)
+        if inKey ~= nil then
+            return outKey, inTable, inKey, index + 1, v
+        end
+
+        outKey, inTable = iterator(outTable, outKey)
+        if outKey == nil then
+            return nil, nil, nil, nil, nil
+        end
+    end
+end
+
+---@generic K,V,R
+---@param iterator fun(t:table, k:K):K,V
+---@param selector fun(any, any):table
+---@param outTable table
+---@param outKey any
+---@param inTable table
+---@param inKey any
+---@param index number?
+---@return any # outKey
+---@return table? # inTable
+---@return any # inKey
+---@return number? # index
+---@return any # value
+local function IterateManyWithSelector(iterator, selector, outTable, outKey, inTable, inKey, index)
+    if outKey == nil then
+        outKey, inTable = iterator(outTable, outKey)
+        if outKey == nil then
+            return nil, nil, nil, nil, nil
+        end
+        inTable = selector(inTable, outKey)
+        inKey = nil
+        index = 0
+    end
+
+    while true do
+        local v
+        inKey, v = _next(inTable, inKey)
+        if inKey ~= nil then
+            return outKey, inTable, inKey, index + 1, v
+        end
+
+        outKey, inTable = iterator(outTable, outKey)
+        if outKey == nil then
+            return nil, nil, nil, nil, nil
+        end
+        inTable = selector(inTable, outKey)
+    end
+end
+
+local function SelectManyIt(it, k)
+    return it(k)
+end
+
+---@generic K,V,R
+---@param iterator fun(t:table, k:K):K,V
+---@param transformer? fun(t:table):table<K,V>
+---@param selector? fun(value: V, key:K):R
+local function SelectManyIterator(iterator, transformer, selector)
+    if selector then
+        if transformer then
+            return SelectManyIt, function(t)
+                t = transformer(t)
+
+                -- context of selectMany
+                local outerKey = nil
+                local inTable = nil
+                local innerKey = nil
+                ---@type number?
+                local curIndex = 0
+
+                return function(_)
+                    local v
+                    outerKey, inTable, innerKey, curIndex, v = IterateManyWithSelector(iterator, selector, t,
+                        outerKey, inTable, innerKey, curIndex)
+                    return curIndex, v
+                end
+            end
+        end
+
+        return SelectManyIt, function(t)
+            -- context of selectMany
+            local outerKey = nil
+            local inTable = nil
+            local innerKey = nil
+            ---@type number?
+            local curIndex = 0
+
+            return function(_)
+                local v
+                outerKey, inTable, innerKey, curIndex, v = IterateManyWithSelector(iterator, selector, t, outerKey,
+                    inTable, innerKey, curIndex)
+                return curIndex, v
+            end
+        end
+    end
+
+    if transformer then
+        return SelectManyIt, function(t)
+            t = transformer(t)
+
+            -- context of selectMany
+            local outerKey = nil
+            local inTable = nil
+            local innerKey = nil
+            ---@type number?
+            local curIndex = 0
+
+            return function(_)
+                local v
+                outerKey, inTable, innerKey, curIndex, v = IterateMany(iterator, t, outerKey, inTable, innerKey,
+                    curIndex)
+                return curIndex, v
+            end
+        end
+    end
+
+    return SelectManyIt, function(t)
+        -- context of selectMany
+        local outerKey = nil
+        local inTable = nil
+        local innerKey = nil
+        ---@type number?
+        local curIndex = 0
+
+        return function(_)
+            local v
+            outerKey, inTable, innerKey, curIndex, v = IterateMany(iterator, t, outerKey, inTable, innerKey,
+                curIndex)
+            return curIndex, v
+        end
+    end
+end
+
 ---Creates a transformer that groups elements by a key selector function
 ---@generic K,V,R
 ---@param iterator fun(t:table, k:K):K,V @The source iterator
@@ -606,6 +762,14 @@ end
 ---@return Enumerator
 function EnumeratorMeta:AsSet()
     return EnumeratorCreate(AsSetTransformer(self.iterator, self.transformer))
+end
+
+---@generic R:table
+---@generic K,V
+---@param selector? fun(value:V, key:K): R
+---@return Enumerator
+function EnumeratorMeta:SelectMany(selector)
+    return EnumeratorCreate(SelectManyIterator(self.iterator, self.transformer, selector))
 end
 
 ---Executes a callback for each element in the sequence.
@@ -1213,6 +1377,15 @@ end
 ---@return Enumerable
 function EnumerableMeta:AsSet()
     self.iterator, self.transformer = AsSetTransformer(self.iterator, self.transformer)
+    return self
+end
+
+---@generic R:table
+---@generic K,V
+---@param selector? fun(value:V, key:K): R
+---@return Enumerable
+function EnumerableMeta:SelectMany(selector)
+    self.iterator, self.transformer = SelectManyIterator(self.iterator, self.transformer, selector)
     return self
 end
 
