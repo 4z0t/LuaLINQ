@@ -1741,6 +1741,10 @@ end
 ---#endregion
 
 return {
+    PairsEnumerator = EnumeratorMeta.Create(_next),
+    IPairsEnumerator = EnumeratorMeta.Create(_inext),
+    Enumerate = EnumerableMeta.Enumerate,
+
     Enumerable = EnumerableMeta,
     Enumerator = EnumeratorMeta,
 }
