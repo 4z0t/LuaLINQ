@@ -33,7 +33,11 @@
 local _setmetatable = setmetatable
 local TableInsert = table.insert
 local _next = next
-local _inext = ipairs {}
+local _inextf = ipairs {}
+local function _inext(t, i)
+    return _inextf(t, i or 0)
+end
+
 local pairs = pairs
 local TableGetN
 if _VERSION == "Lua 5.0" then
