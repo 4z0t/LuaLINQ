@@ -1307,9 +1307,9 @@ EnumerableMeta.__index = EnumerableMeta
 local function EnumerableCreate(t, iterator, transformer)
     return _setmetatable(
         {
-            t = t,
             iterator = iterator or _inext,
-            transformer = transformer or false
+            transformer = transformer or false,
+            t = t,
         },
         EnumerableMeta)
 end
@@ -1773,6 +1773,13 @@ end
 ---#endregion
 
 ---#endregion
+
+---Returns new Enumerable using Enumerator's iterator.
+---@param t table
+---@return Enumerable
+function EnumeratorMeta:Enumerate(t)
+    return EnumerableCreate(t, self.iterator, self.transformer)
+end
 
 return {
     PairsEnumerator = EnumeratorMeta.Create(_next),
