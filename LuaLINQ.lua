@@ -115,9 +115,9 @@ end
 
 ---@generic T,K,V
 ---@param t1 T
----@param iter1 fun(t:T, k:K):K,V
+---@param iter1 fun(t:T, k:K):(K,V)
 ---@param t2 T
----@param iter2 fun(t:T, k:K):K,V
+---@param iter2 fun(t:T, k:K):(K,V)
 ---@return boolean
 local function SequenceEqual(t1, iter1, t2, iter2)
     local k1, v1 = iter1(t1, nil)
@@ -724,11 +724,13 @@ end
 
 ---#endregion
 
+---@alias IteratorFunction fun(t:table, k:any):any, any
+
 ---#region Enumerable
 
 ---@class Enumerable
 ---@field t table
----@field iterator (fun(t:table, k:any):any, any)
+---@field iterator IteratorFunction
 ---@field transformer (fun(t:table):table)
 local EnumerableMeta = {}
 EnumerableMeta.__index = EnumerableMeta
@@ -748,23 +750,33 @@ local function EnumerableCreate(t, iterator, transformer)
         EnumerableMeta)
 end
 
+---@generic T, K, V
+---@param e Enumerable
+---@return (fun(t:T, k:K):K,V)
+---@return T
+local function EnumerableComputeIntermediate(e)
+    local t, iterator, transformer = e.t, e.iterator, e.transformer
+    if transformer then
+        t = transformer(t)
+    end
+    return iterator, t
+end
+
 EnumerableMeta.Enumerate = EnumerableCreate
+
+---@overload fun(e:any):false
+---@param e Enumerable
+---@return true
+local function IsEnumerable(e)
+    return getmetatable(e) == EnumerableMeta
+end
 
 ---@generic K,V
 ---@return fun(t:table, k:K):K,V
 ---@return table
 ---@return any
 function EnumerableMeta:__call()
-    local t, transformer = self.t, self.transformer
-    -- local initial = nil
-    -- if transformer then
-    --     t, initial = transformer(t)
-    -- end
-    -- return self.iterator, t, initial
-    if transformer then
-        t = transformer(t)
-    end
-    return self.iterator, t
+    return EnumerableComputeIntermediate(self)
 end
 
 ---@return Enumerable
@@ -884,12 +896,7 @@ function EnumerableMeta:Execute(callback)
     --     callback(v, k)
     -- end
 
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    for k, v in iterator, t do
+    for k, v in EnumerableComputeIntermediate(self) do
         callback(v, k)
     end
 end
@@ -898,10 +905,7 @@ end
 ---This is useful when you want to iterate over the same sequence multiple times without re-evaluating transformations.
 ---@return Enumerable @A new Enumerable containing the cached sequence
 function EnumerableMeta:Cache()
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
+    local iterator, t = EnumerableComputeIntermediate(self)
     return EnumerableCreate(t, iterator)
 end
 
