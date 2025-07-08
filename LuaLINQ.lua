@@ -754,7 +754,7 @@ end
 ---@param e Enumerable
 ---@return (fun(t:T, k:K):K,V)
 ---@return T
-local function EnumerableComputeIntermediate(e)
+local function EnumerableForIteration(e)
     local t, iterator, transformer = e.t, e.iterator, e.transformer
     if transformer then
         t = transformer(t)
@@ -776,7 +776,7 @@ end
 ---@return table
 ---@return any
 function EnumerableMeta:__call()
-    return EnumerableComputeIntermediate(self)
+    return EnumerableForIteration(self)
 end
 
 ---@return Enumerable
@@ -896,7 +896,7 @@ function EnumerableMeta:Execute(callback)
     --     callback(v, k)
     -- end
 
-    for k, v in EnumerableComputeIntermediate(self) do
+    for k, v in EnumerableForIteration(self) do
         callback(v, k)
     end
 end
@@ -905,7 +905,7 @@ end
 ---This is useful when you want to iterate over the same sequence multiple times without re-evaluating transformations.
 ---@return Enumerable @A new Enumerable containing the cached sequence
 function EnumerableMeta:Cache()
-    local iterator, t = EnumerableComputeIntermediate(self)
+    local iterator, t = EnumerableForIteration(self)
     return EnumerableCreate(t, iterator)
 end
 
@@ -1720,7 +1720,7 @@ function EnumeratorMeta:SequenceEqual(comparer)
                 t1 = transformer(t1)
                 if IsEnumerable(t2) then
                     ---@cast t2 Enumerable
-                    local iterator2, t = EnumerableComputeIntermediate(t2)
+                    local iterator2, t = EnumerableForIteration(t2)
                     return SequenceEqualWithComparer(t1, iterator, t, iterator2, comparer)
                 else
                     return SequenceEqualWithComparer(t1, iterator, t2, next, comparer)
@@ -1731,7 +1731,7 @@ function EnumeratorMeta:SequenceEqual(comparer)
         return function(t1, t2)
             if IsEnumerable(t2) then
                 ---@cast t2 Enumerable
-                local iterator2, t = EnumerableComputeIntermediate(t2)
+                local iterator2, t = EnumerableForIteration(t2)
                 return SequenceEqualWithComparer(t1, iterator, t, iterator2, comparer)
             else
                 return SequenceEqualWithComparer(t1, iterator, t2, next, comparer)
@@ -1744,7 +1744,7 @@ function EnumeratorMeta:SequenceEqual(comparer)
             t1 = transformer(t1)
             if IsEnumerable(t2) then
                 ---@cast t2 Enumerable
-                local iterator2, t = EnumerableComputeIntermediate(t2)
+                local iterator2, t = EnumerableForIteration(t2)
                 return SequenceEqual(t1, iterator, t, iterator2)
             else
                 return SequenceEqual(t1, iterator, t2, next)
@@ -1755,7 +1755,7 @@ function EnumeratorMeta:SequenceEqual(comparer)
     return function(t1, t2)
         if IsEnumerable(t2) then
             ---@cast t2 Enumerable
-            local iterator2, t = EnumerableComputeIntermediate(t2)
+            local iterator2, t = EnumerableForIteration(t2)
             return SequenceEqual(t1, iterator, t, iterator2)
         else
             return SequenceEqual(t1, iterator, t2, next)
