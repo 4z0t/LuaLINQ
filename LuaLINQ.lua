@@ -680,8 +680,500 @@ end
 
 ---#endregion
 
----#region Enumerator
+---#region Enumerable
 
+---@class Enumerable
+---@field t table
+---@field iterator (fun(t:table, k:any):any, any)
+---@field transformer (fun(t:table):table)
+local EnumerableMeta = {}
+EnumerableMeta.__index = EnumerableMeta
+
+---@generic K,V,R
+---@param t table
+---@param iterator? fun(t:table, k:K):K,V
+---@param transformer? fun(t:table):table<K,V>
+---@return Enumerable
+local function EnumerableCreate(t, iterator, transformer)
+    return _setmetatable(
+        {
+            iterator = iterator or _inext,
+            transformer = transformer or false,
+            t = t,
+        },
+        EnumerableMeta)
+end
+
+EnumerableMeta.Enumerate = EnumerableCreate
+
+---@generic K,V
+---@return fun(t:table, k:K):K,V
+---@return table
+---@return any
+function EnumerableMeta:__call()
+    local t, transformer = self.t, self.transformer
+    -- local initial = nil
+    -- if transformer then
+    --     t, initial = transformer(t)
+    -- end
+    -- return self.iterator, t, initial
+    if transformer then
+        t = transformer(t)
+    end
+    return self.iterator, t
+end
+
+---@return Enumerable
+function EnumerableMeta:Clone()
+    return EnumerableCreate(self.t, self.iterator, self.transformer)
+end
+
+---@generic K,V
+---@param condition fun(value:V, key:K):boolean
+---@return Enumerable
+function EnumerableMeta:Where(condition)
+    if condition == nil then
+        error("Enumerable:Where: condition is required")
+    end
+    self.iterator, self.transformer = WhereIterator(self.iterator, self.transformer, condition)
+    return self
+end
+
+---@generic K,V,R
+---@param selector (fun(value:V, key:K):R)|string|number
+---@return Enumerable
+function EnumerableMeta:Select(selector)
+    if selector == nil then
+        error("Enumerable:Select: selector is required")
+    end
+    self.iterator, self.transformer = SelectIterator(self.iterator, self.transformer, selector)
+    return self
+end
+
+---@return Enumerable
+function EnumerableMeta:Keys()
+    self.iterator, self.transformer = KeysIterator(self.iterator, self.transformer)
+    return self
+end
+
+---@return Enumerable
+function EnumerableMeta:Distinct()
+    self.iterator, self.transformer = DistinctTransformer(self.iterator, self.transformer)
+    return self
+end
+
+---@generic K,V
+---@param func fun(value:V, key:K)
+---@return Enumerable
+function EnumerableMeta:Foreach(func)
+    if func == nil then
+        error("Enumerable:Foreach: func is required")
+    end
+    self.iterator, self.transformer = ForeachIterator(self.iterator, self.transformer, func)
+    return self
+end
+
+---@return Enumerable
+function EnumerableMeta:Reverse()
+    self.iterator, self.transformer = ReverseTransformer(self.iterator, self.transformer)
+    return self
+end
+
+---@generic K,V,R
+---@param selector fun(value: V, key:K):R
+---@return Enumerable
+function EnumerableMeta:GroupBy(selector)
+    if selector == nil then
+        error("Enumerable:GroupBy: selector is required")
+    end
+    self.iterator, self.transformer = GroupByTransformer(self.iterator, self.transformer, selector)
+    return self
+end
+
+---@generic V
+---@param comparer? fun(left:V, right:V):boolean
+---@return Enumerable
+function EnumerableMeta:Sort(comparer)
+    self.iterator, self.transformer = SortTransformer(self.iterator, self.transformer, comparer)
+    return self
+end
+
+---@return Enumerable
+function EnumerableMeta:AsSet()
+    self.iterator, self.transformer = AsSetTransformer(self.iterator, self.transformer)
+    return self
+end
+
+---@generic R:table
+---@generic K,V
+---@param selector? fun(value:V, key:K): R
+---@return Enumerable
+function EnumerableMeta:SelectMany(selector)
+    self.iterator, self.transformer = SelectManyIterator(self.iterator, self.transformer, selector)
+    return self
+end
+
+---@generic K,V,Arg
+---@param fn fun(iterator:(fun(t:table, k:K):K,V),transformer?:(fun(t:table):table<K,V>),...:Arg):((fun(t: table<K,V>, k?: K):K, V),(fun(t:table):table<K,V>)?)
+---@param ... Arg
+---@return Enumerable
+function EnumerableMeta:Use(fn, ...)
+    self.iterator, self.transformer = fn(self.iterator, self.transformer, ...)
+    return self
+end
+
+---#region Enumerable Terminators
+
+---@generic K,V
+---@param callback fun(value:V, key:K)
+function EnumerableMeta:Execute(callback)
+    if callback == nil then
+        error("Enumerable:Execute: callback is required")
+    end
+
+    -- local t, initial, iterator, transformer = self.t, nil, self.iterator, self.transformer
+    -- if transformer then
+    --     t, initial = transformer(t)
+    -- end
+
+    -- for k, v in iterator, t, initial do
+    --     callback(v, k)
+    -- end
+
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    for k, v in iterator, t do
+        callback(v, k)
+    end
+end
+
+---Creates a new Enumerable with the current sequence cached into a table.
+---This is useful when you want to iterate over the same sequence multiple times without re-evaluating transformations.
+---@return Enumerable @A new Enumerable containing the cached sequence
+function EnumerableMeta:Cache()
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+    return EnumerableCreate(t, iterator)
+end
+
+---@generic K,V
+---@param condition fun(value:V, key:K):boolean
+---@return V?
+function EnumerableMeta:First(condition)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if condition then
+        for k, v in iterator, t do
+            if condition(v, k) then
+                return v
+            end
+        end
+        return nil
+    end
+
+    for _, v in iterator, t do
+        return v
+    end
+    return nil
+end
+
+---@generic K,V
+---@param condition fun(value:V, key:K):boolean
+---@return V?
+function EnumerableMeta:Last(condition)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if condition then
+        local result = nil
+        for k, v in iterator, t do
+            if condition(v, k) then
+                result = v
+            end
+        end
+        return result
+    end
+
+    local result = nil
+    for _, v in iterator, t do
+        result = v
+    end
+    return result
+end
+
+---@generic R
+---@return R?
+function EnumerableMeta:Average()
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    local r, n = 0, 0
+    for _, v in iterator, t do
+        r = r + v
+        n = n + 1
+    end
+    if n == 0 then
+        return nil
+    end
+    return r / n
+end
+
+---@generic K,V
+---@param condition? fun(value:V, key:K):boolean
+---@return integer
+function EnumerableMeta:Count(condition)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if condition then
+        local n = 0
+        for k, v in iterator, t do
+            if condition(v, k) then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
+    if iterator == _inext then
+        return #t
+    end
+    if iterator == _next then
+        ---@diagnostic disable-next-line:return-type-mismatch
+        return TableSize(t)
+    end
+
+    local n = 0
+    for _ in iterator, t do
+        n = n + 1
+    end
+    return n
+end
+
+---@generic K,V,R
+---@param reducer fun(result:R, value:V, key:K):R
+---@param initial R
+---@return R
+function EnumerableMeta:Reduce(reducer, initial)
+    if reducer == nil then
+        error("Enumerable:Reduce: reducer is required")
+    end
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    local r = initial
+    for k, v in iterator, t do
+        r = reducer(r, v, k)
+    end
+    return r
+end
+
+---@return number
+function EnumerableMeta:Sum()
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+
+    if transformer then
+        t = transformer(t)
+    end
+
+    local s = 0
+    for _, v in iterator, t do
+        s = s + v
+    end
+    return s
+end
+
+---@generic K,V
+---@param value V
+---@return K?
+function EnumerableMeta:Contains(value)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    for k, v in iterator, t do
+        if v == value then
+            return k
+        end
+    end
+    return nil
+end
+
+---@generic V
+---@param comparer? fun(left:V, right:V):boolean
+---@return V?
+function EnumerableMeta:Min(comparer)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if comparer then
+        local minValue = nil
+        for _, value in iterator, t do
+            if minValue == nil or not comparer(minValue, value) then
+                minValue = value
+            end
+        end
+        return minValue
+    end
+
+    local minValue = nil
+    for _, value in iterator, t do
+        if minValue == nil or minValue > value then
+            minValue = value
+        end
+    end
+    return minValue
+end
+
+---@generic V
+---@param comparer? fun(left:V, right:V):boolean
+---@return V?
+function EnumerableMeta:Max(comparer)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if comparer then
+        local maxValue = nil
+        for _, value in iterator, t do
+            if maxValue == nil or comparer(maxValue, value) then
+                maxValue = value
+            end
+        end
+        return maxValue
+    end
+
+    local maxValue = nil
+    for _, value in iterator, t do
+        if maxValue == nil or maxValue < value then
+            maxValue = value
+        end
+    end
+    return maxValue
+end
+
+---@generic V,K
+---@param condition? fun(value:V, key:K):boolean
+---@return boolean
+function EnumerableMeta:All(condition)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+    if condition then
+        for k, v in iterator, t do
+            if not condition(v, k) then
+                return false
+            end
+        end
+        return true
+    end
+    for _, v in iterator, t do
+        if not v then
+            return false
+        end
+    end
+    return true
+end
+
+---@generic V,K
+---@param condition? fun(value:V, key:K):boolean
+---@return boolean
+function EnumerableMeta:Any(condition)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+    if condition then
+        for k, v in iterator, t do
+            if condition(v, k) then
+                return true
+            end
+        end
+        return false
+    end
+    for _, v in iterator, t do
+        if v then
+            return true
+        end
+    end
+    return false
+end
+
+---@generic V
+---@return V[]
+function EnumerableMeta:ToArray()
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+    if transformer then
+        t = transformer(t)
+    end
+
+    if iterator == _inext then
+        return t
+    end
+
+    local nt = {}
+    for _, v in iterator, t do
+        TableInsert(nt, v)
+    end
+    return nt
+end
+
+---@generic K,V,KR,KV
+---@param selector? fun(key:K, value:V):(KR,KV)
+---@return table
+function EnumerableMeta:ToTable(selector)
+    local t, iterator, transformer = self.t, self.iterator, self.transformer
+
+    if transformer then
+        t = transformer(t)
+    end
+
+    if selector then
+        local nt = {}
+        for k, v in iterator, t do
+            local nk, nv = selector(k, v)
+            nt[nk] = nv
+        end
+        return nt
+    end
+
+    if iterator == _next or iterator == _inext then
+        return t
+    end
+
+    local nt = {}
+    for k, v in iterator, t do
+        nt[k] = v
+    end
+    return nt
+end
+
+---#endregion
+
+---#endregion
+
+---#region Enumerator
 
 ---@class Enumerator
 ---@field iterator (fun(t:table, k:any):any, any)
@@ -1293,499 +1785,6 @@ function EnumeratorMeta:ToTable(selector)
         return nt
     end
 end
-
----#endregion
-
----#region Enumerable
-
----@class Enumerable
----@field t table
----@field iterator (fun(t:table, k:any):any, any)
----@field transformer (fun(t:table):table)
-local EnumerableMeta = {}
-EnumerableMeta.__index = EnumerableMeta
-
----@generic K,V,R
----@param t table
----@param iterator? fun(t:table, k:K):K,V
----@param transformer? fun(t:table):table<K,V>
----@return Enumerable
-local function EnumerableCreate(t, iterator, transformer)
-    return _setmetatable(
-        {
-            iterator = iterator or _inext,
-            transformer = transformer or false,
-            t = t,
-        },
-        EnumerableMeta)
-end
-
-EnumerableMeta.Enumerate = EnumerableCreate
-
----@generic K,V
----@return fun(t:table, k:K):K,V
----@return table
----@return any
-function EnumerableMeta:__call()
-    local t, transformer = self.t, self.transformer
-    -- local initial = nil
-    -- if transformer then
-    --     t, initial = transformer(t)
-    -- end
-    -- return self.iterator, t, initial
-    if transformer then
-        t = transformer(t)
-    end
-    return self.iterator, t
-end
-
----@return Enumerable
-function EnumerableMeta:Clone()
-    return EnumerableCreate(self.t, self.iterator, self.transformer)
-end
-
----@generic K,V
----@param condition fun(value:V, key:K):boolean
----@return Enumerable
-function EnumerableMeta:Where(condition)
-    if condition == nil then
-        error("Enumerable:Where: condition is required")
-    end
-    self.iterator, self.transformer = WhereIterator(self.iterator, self.transformer, condition)
-    return self
-end
-
----@generic K,V,R
----@param selector (fun(value:V, key:K):R)|string|number
----@return Enumerable
-function EnumerableMeta:Select(selector)
-    if selector == nil then
-        error("Enumerable:Select: selector is required")
-    end
-    self.iterator, self.transformer = SelectIterator(self.iterator, self.transformer, selector)
-    return self
-end
-
----@return Enumerable
-function EnumerableMeta:Keys()
-    self.iterator, self.transformer = KeysIterator(self.iterator, self.transformer)
-    return self
-end
-
----@return Enumerable
-function EnumerableMeta:Distinct()
-    self.iterator, self.transformer = DistinctTransformer(self.iterator, self.transformer)
-    return self
-end
-
----@generic K,V
----@param func fun(value:V, key:K)
----@return Enumerable
-function EnumerableMeta:Foreach(func)
-    if func == nil then
-        error("Enumerable:Foreach: func is required")
-    end
-    self.iterator, self.transformer = ForeachIterator(self.iterator, self.transformer, func)
-    return self
-end
-
----@return Enumerable
-function EnumerableMeta:Reverse()
-    self.iterator, self.transformer = ReverseTransformer(self.iterator, self.transformer)
-    return self
-end
-
----@generic K,V,R
----@param selector fun(value: V, key:K):R
----@return Enumerable
-function EnumerableMeta:GroupBy(selector)
-    if selector == nil then
-        error("Enumerable:GroupBy: selector is required")
-    end
-    self.iterator, self.transformer = GroupByTransformer(self.iterator, self.transformer, selector)
-    return self
-end
-
----@generic V
----@param comparer? fun(left:V, right:V):boolean
----@return Enumerable
-function EnumerableMeta:Sort(comparer)
-    self.iterator, self.transformer = SortTransformer(self.iterator, self.transformer, comparer)
-    return self
-end
-
----@return Enumerable
-function EnumerableMeta:AsSet()
-    self.iterator, self.transformer = AsSetTransformer(self.iterator, self.transformer)
-    return self
-end
-
----@generic R:table
----@generic K,V
----@param selector? fun(value:V, key:K): R
----@return Enumerable
-function EnumerableMeta:SelectMany(selector)
-    self.iterator, self.transformer = SelectManyIterator(self.iterator, self.transformer, selector)
-    return self
-end
-
----@generic K,V,Arg
----@param fn fun(iterator:(fun(t:table, k:K):K,V),transformer?:(fun(t:table):table<K,V>),...:Arg):((fun(t: table<K,V>, k?: K):K, V),(fun(t:table):table<K,V>)?)
----@param ... Arg
----@return Enumerable
-function EnumerableMeta:Use(fn, ...)
-    self.iterator, self.transformer = fn(self.iterator, self.transformer, ...)
-    return self
-end
-
----#region Enumerable Terminators
-
----@generic K,V
----@param callback fun(value:V, key:K)
-function EnumerableMeta:Execute(callback)
-    if callback == nil then
-        error("Enumerable:Execute: callback is required")
-    end
-
-    -- local t, initial, iterator, transformer = self.t, nil, self.iterator, self.transformer
-    -- if transformer then
-    --     t, initial = transformer(t)
-    -- end
-
-    -- for k, v in iterator, t, initial do
-    --     callback(v, k)
-    -- end
-
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    for k, v in iterator, t do
-        callback(v, k)
-    end
-end
-
----Creates a new Enumerable with the current sequence cached into a table.
----This is useful when you want to iterate over the same sequence multiple times without re-evaluating transformations.
----@return Enumerable @A new Enumerable containing the cached sequence
-function EnumerableMeta:Cache()
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-    return EnumerableCreate(t, iterator)
-end
-
----@generic K,V
----@param condition fun(value:V, key:K):boolean
----@return V?
-function EnumerableMeta:First(condition)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if condition then
-        for k, v in iterator, t do
-            if condition(v, k) then
-                return v
-            end
-        end
-        return nil
-    end
-
-    for _, v in iterator, t do
-        return v
-    end
-    return nil
-end
-
----@generic K,V
----@param condition fun(value:V, key:K):boolean
----@return V?
-function EnumerableMeta:Last(condition)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if condition then
-        local result = nil
-        for k, v in iterator, t do
-            if condition(v, k) then
-                result = v
-            end
-        end
-        return result
-    end
-
-    local result = nil
-    for _, v in iterator, t do
-        result = v
-    end
-    return result
-end
-
----@generic R
----@return R?
-function EnumerableMeta:Average()
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    local r, n = 0, 0
-    for _, v in iterator, t do
-        r = r + v
-        n = n + 1
-    end
-    if n == 0 then
-        return nil
-    end
-    return r / n
-end
-
----@generic K,V
----@param condition? fun(value:V, key:K):boolean
----@return integer
-function EnumerableMeta:Count(condition)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if condition then
-        local n = 0
-        for k, v in iterator, t do
-            if condition(v, k) then
-                n = n + 1
-            end
-        end
-        return n
-    end
-
-    if iterator == _inext then
-        return #t
-    end
-    if iterator == _next then
-        ---@diagnostic disable-next-line:return-type-mismatch
-        return TableSize(t)
-    end
-
-    local n = 0
-    for _ in iterator, t do
-        n = n + 1
-    end
-    return n
-end
-
----@generic K,V,R
----@param reducer fun(result:R, value:V, key:K):R
----@param initial R
----@return R
-function EnumerableMeta:Reduce(reducer, initial)
-    if reducer == nil then
-        error("Enumerable:Reduce: reducer is required")
-    end
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    local r = initial
-    for k, v in iterator, t do
-        r = reducer(r, v, k)
-    end
-    return r
-end
-
----@return number
-function EnumerableMeta:Sum()
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-
-    if transformer then
-        t = transformer(t)
-    end
-
-    local s = 0
-    for _, v in iterator, t do
-        s = s + v
-    end
-    return s
-end
-
----@generic K,V
----@param value V
----@return K?
-function EnumerableMeta:Contains(value)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    for k, v in iterator, t do
-        if v == value then
-            return k
-        end
-    end
-    return nil
-end
-
----@generic V
----@param comparer? fun(left:V, right:V):boolean
----@return V?
-function EnumerableMeta:Min(comparer)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if comparer then
-        local minValue = nil
-        for _, value in iterator, t do
-            if minValue == nil or not comparer(minValue, value) then
-                minValue = value
-            end
-        end
-        return minValue
-    end
-
-    local minValue = nil
-    for _, value in iterator, t do
-        if minValue == nil or minValue > value then
-            minValue = value
-        end
-    end
-    return minValue
-end
-
----@generic V
----@param comparer? fun(left:V, right:V):boolean
----@return V?
-function EnumerableMeta:Max(comparer)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if comparer then
-        local maxValue = nil
-        for _, value in iterator, t do
-            if maxValue == nil or comparer(maxValue, value) then
-                maxValue = value
-            end
-        end
-        return maxValue
-    end
-
-    local maxValue = nil
-    for _, value in iterator, t do
-        if maxValue == nil or maxValue < value then
-            maxValue = value
-        end
-    end
-    return maxValue
-end
-
----@generic V,K
----@param condition? fun(value:V, key:K):boolean
----@return boolean
-function EnumerableMeta:All(condition)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-    if condition then
-        for k, v in iterator, t do
-            if not condition(v, k) then
-                return false
-            end
-        end
-        return true
-    end
-    for _, v in iterator, t do
-        if not v then
-            return false
-        end
-    end
-    return true
-end
-
----@generic V,K
----@param condition? fun(value:V, key:K):boolean
----@return boolean
-function EnumerableMeta:Any(condition)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-    if condition then
-        for k, v in iterator, t do
-            if condition(v, k) then
-                return true
-            end
-        end
-        return false
-    end
-    for _, v in iterator, t do
-        if v then
-            return true
-        end
-    end
-    return false
-end
-
----@generic V
----@return V[]
-function EnumerableMeta:ToArray()
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-    if transformer then
-        t = transformer(t)
-    end
-
-    if iterator == _inext then
-        return t
-    end
-
-    local nt = {}
-    for _, v in iterator, t do
-        TableInsert(nt, v)
-    end
-    return nt
-end
-
----@generic K,V,KR,KV
----@param selector? fun(key:K, value:V):(KR,KV)
----@return table
-function EnumerableMeta:ToTable(selector)
-    local t, iterator, transformer = self.t, self.iterator, self.transformer
-
-    if transformer then
-        t = transformer(t)
-    end
-
-    if selector then
-        local nt = {}
-        for k, v in iterator, t do
-            local nk, nv = selector(k, v)
-            nt[nk] = nv
-        end
-        return nt
-    end
-
-    if iterator == _next or iterator == _inext then
-        return t
-    end
-
-    local nt = {}
-    for k, v in iterator, t do
-        nt[k] = v
-    end
-    return nt
-end
-
----#endregion
 
 ---#endregion
 
