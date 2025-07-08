@@ -1708,6 +1708,61 @@ function EnumeratorMeta:Sum()
     end
 end
 
+---@generic T,K,V
+---@param comparer? fun(v1:V, v2:V):boolean
+---@return fun(t1:table, t2:table|Enumerable):boolean
+function EnumeratorMeta:SequenceEqual(comparer)
+    local iterator, transformer = self.iterator, self.transformer
+
+    if comparer then
+        if transformer then
+            return function(t1, t2)
+                t1 = transformer(t1)
+                if IsEnumerable(t2) then
+                    ---@cast t2 Enumerable
+                    local iterator2, t = EnumerableComputeIntermediate(t2)
+                    return SequenceEqualWithComparer(t1, iterator, t, iterator2, comparer)
+                else
+                    return SequenceEqualWithComparer(t1, iterator, t2, next, comparer)
+                end
+            end
+        end
+
+        return function(t1, t2)
+            if IsEnumerable(t2) then
+                ---@cast t2 Enumerable
+                local iterator2, t = EnumerableComputeIntermediate(t2)
+                return SequenceEqualWithComparer(t1, iterator, t, iterator2, comparer)
+            else
+                return SequenceEqualWithComparer(t1, iterator, t2, next, comparer)
+            end
+        end
+    end
+
+    if transformer then
+        return function(t1, t2)
+            t1 = transformer(t1)
+            if IsEnumerable(t2) then
+                ---@cast t2 Enumerable
+                local iterator2, t = EnumerableComputeIntermediate(t2)
+                return SequenceEqual(t1, iterator, t, iterator2)
+            else
+                return SequenceEqual(t1, iterator, t2, next)
+            end
+        end
+    end
+
+    return function(t1, t2)
+        if IsEnumerable(t2) then
+            ---@cast t2 Enumerable
+            local iterator2, t = EnumerableComputeIntermediate(t2)
+            return SequenceEqual(t1, iterator, t, iterator2)
+        else
+            return SequenceEqual(t1, iterator, t2, next)
+        end
+    end
+end
+
 ---@generic K,V
 ---@return fun(t:table, value:V):K?
 function EnumeratorMeta:Contains()
