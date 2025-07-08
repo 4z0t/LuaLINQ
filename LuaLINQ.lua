@@ -113,6 +113,49 @@ local function CallStatefulIterator(it, k)
     return it(k)
 end
 
+---@generic T,K,V
+---@param t1 T
+---@param iter1 fun(t:T, k:K):K,V
+---@param t2 T
+---@param iter2 fun(t:T, k:K):K,V
+---@return boolean
+local function SequenceEqual(t1, iter1, t2, iter2)
+    local k1, v1 = iter1(t1, nil)
+    local k2, v2 = iter2(t2, nil)
+
+    while k1 ~= nil and k2 ~= nil do
+        if v1 ~= v2 then
+            return false
+        end
+        k1, v1 = iter1(t1, k1)
+        k2, v2 = iter2(t2, k2)
+    end
+
+    return k1 == nil and k2 == nil
+end
+
+---@generic T,K,V
+---@param t1 T
+---@param iter1 fun(t:T, k:K):K,V
+---@param t2 T
+---@param iter2 fun(t:T, k:K):K,V
+---@param comparer fun(v1:V, v2:V):boolean
+---@return boolean
+local function SequenceEqualWithComparer(t1, iter1, t2, iter2, comparer)
+    local k1, v1 = iter1(t1, nil)
+    local k2, v2 = iter2(t2, nil)
+
+    while k1 ~= nil and k2 ~= nil do
+        if not comparer(v1, v2) then
+            return false
+        end
+        k1, v1 = iter1(t1, k1)
+        k2, v2 = iter2(t2, k2)
+    end
+
+    return k1 == nil and k2 == nil
+end
+
 ---Creates an iterator that transforms each element using a selector function or key
 ---@generic K,V,R
 ---@param iterator fun(t:table, k:K):K,V @The source iterator
