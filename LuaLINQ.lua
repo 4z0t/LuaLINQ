@@ -30,9 +30,10 @@
  *]]
 
 ---#region Upvalues
-local _setmetatable = setmetatable
+local setmetatable = setmetatable
+local getmetatable = getmetatable
 local TableInsert = table.insert
-local _next = next
+local next = next
 
 -- There is one inconsistency between Lua versions, that makes iteration with ipairs harder.
 -- In Lua 5.0 ipairs works 2 ways:
@@ -60,7 +61,7 @@ local _next = next
 -- ```
 -- Otherwise this implementation is provided:
 local _inextf = ipairs {}
-local function _inext(t, i)
+local function inext(t, i)
     return _inextf(t, i or 0)
 end
 
@@ -84,7 +85,7 @@ local function TableSize(t)
 end
 
 local TableSort = table.sort
-local _type = type
+local type = type
 ---#endregion
 
 ---@generic T
@@ -120,7 +121,7 @@ end
 ---@return fun(t:table<K, V>, k:K):K,R @Iterator function that yields transformed elements
 ---@return (fun(t:table):table<K,V>)? @Optional transformer function
 local function SelectIterator(iterator, transformer, selector)
-    local selectorType = _type(selector)
+    local selectorType = type(selector)
     if selectorType == "function" then
         return function(t, k)
             local v
@@ -184,7 +185,7 @@ end
 ---@return fun(t:table):V[] @Transformer function that returns array of distinct elements
 local function DistinctTransformer(iterator, transformer)
     if transformer then
-        return _inext, function(t)
+        return inext, function(t)
             local nt = {}
             local nta = {}
             for _, v in iterator, transformer(t) do
@@ -196,7 +197,7 @@ local function DistinctTransformer(iterator, transformer)
             return nta
         end
     end
-    return _inext, function(t)
+    return inext, function(t)
         local nt = {}
         local nta = {}
         for _, v in iterator, t do
@@ -246,7 +247,7 @@ local function ReverseTransformer(iterator, transformer)
         --     end
         -- end
 
-        return _inext, function(t)
+        return inext, function(t)
             local nt = {}
             for _, v in iterator, transformer(t) do
                 TableInsert(nt, 1, v)
@@ -261,7 +262,7 @@ local function ReverseTransformer(iterator, transformer)
     --     end
     -- end
 
-    return _inext, function(t)
+    return inext, function(t)
         local nt = {}
         for _, v in iterator, t do
             TableInsert(nt, 1, v)
@@ -291,7 +292,7 @@ local function IterateMany(iterator, outTable, outKey, inTable, inKey, index)
 
     while true do
         local v
-        inKey, v = _next(inTable, inKey)
+        inKey, v = next(inTable, inKey)
         if inKey ~= nil then
             return outKey, inTable, inKey, index + 1, v
         end
@@ -329,7 +330,7 @@ local function IterateManyWithSelector(iterator, selector, outTable, outKey, inT
 
     while true do
         local v
-        inKey, v = _next(inTable, inKey)
+        inKey, v = next(inTable, inKey)
         if inKey ~= nil then
             return outKey, inTable, inKey, index + 1, v
         end
@@ -431,7 +432,7 @@ end
 ---@return fun(t:table):table<R,V[]> @Transformer function that returns table mapping group keys to arrays of elements
 local function GroupByTransformer(iterator, transformer, selector)
     if transformer then
-        return _next, function(t)
+        return next, function(t)
             local r = {}
             for k, v in iterator, transformer(t) do
                 local nk = selector(v, k)
@@ -442,7 +443,7 @@ local function GroupByTransformer(iterator, transformer, selector)
         end
     end
 
-    return _next, function(t)
+    return next, function(t)
         local r = {}
         for k, v in iterator, t do
             local nk = selector(v, k)
@@ -587,33 +588,33 @@ end
 ---@return fun(table: V[], i?: integer):integer, V
 ---@return fun(t:table):V[]
 local function SortTransformer(iterator, transformer, comparator)
-    if iterator == _inext then
+    if iterator == inext then
         if comparator then
             if transformer then
-                return _inext, function(t)
+                return inext, function(t)
                     local nt = transformer(t)
                     TableSort(nt, comparator)
                     return nt
                 end
             end
-            return _inext, function(t)
+            return inext, function(t)
                 TableSort(t, comparator)
                 return t
             end
         end
         if transformer then
-            return _inext, function(t)
+            return inext, function(t)
                 local nt = transformer(t)
                 TableSort(nt)
                 return nt
             end
         end
-        return _inext, TableSortF
+        return inext, TableSortF
     end
 
     if comparator then
         if transformer then
-            return _inext, function(t)
+            return inext, function(t)
                 local nt = {}
                 for _, v in iterator, transformer(t) do
                     TableInsert(nt, v)
@@ -623,7 +624,7 @@ local function SortTransformer(iterator, transformer, comparator)
             end
         end
 
-        return _inext, function(t)
+        return inext, function(t)
             local nt = {}
             for _, v in iterator, t do
                 TableInsert(nt, v)
@@ -634,7 +635,7 @@ local function SortTransformer(iterator, transformer, comparator)
     end
 
     if transformer then
-        return _inext, function(t)
+        return inext, function(t)
             local nt = {}
             for _, v in iterator, transformer(t) do
                 TableInsert(nt, v)
@@ -644,7 +645,7 @@ local function SortTransformer(iterator, transformer, comparator)
         end
     end
 
-    return _inext, function(t)
+    return inext, function(t)
         local nt = {}
         for _, v in iterator, t do
             TableInsert(nt, v)
@@ -661,7 +662,7 @@ end
 ---@return fun(t:table):table<V,true>
 local function AsSetTransformer(iterator, transformer)
     if transformer then
-        return _next, function(t)
+        return next, function(t)
             local nt = {}
             for _, v in iterator, transformer(t) do
                 nt[v] = true
@@ -669,7 +670,7 @@ local function AsSetTransformer(iterator, transformer)
             return nt
         end
     end
-    return _next, function(t)
+    return next, function(t)
         local nt = {}
         for _, v in iterator, t do
             nt[v] = true
@@ -695,9 +696,9 @@ EnumerableMeta.__index = EnumerableMeta
 ---@param transformer? fun(t:table):table<K,V>
 ---@return Enumerable
 local function EnumerableCreate(t, iterator, transformer)
-    return _setmetatable(
+    return setmetatable(
         {
-            iterator = iterator or _inext,
+            iterator = iterator or inext,
             transformer = transformer or false,
             t = t,
         },
@@ -949,10 +950,10 @@ function EnumerableMeta:Count(condition)
         return n
     end
 
-    if iterator == _inext then
+    if iterator == inext then
         return #t
     end
-    if iterator == _next then
+    if iterator == next then
         ---@diagnostic disable-next-line:return-type-mismatch
         return TableSize(t)
     end
@@ -1128,7 +1129,7 @@ function EnumerableMeta:ToArray()
         t = transformer(t)
     end
 
-    if iterator == _inext then
+    if iterator == inext then
         return t
     end
 
@@ -1158,7 +1159,7 @@ function EnumerableMeta:ToTable(selector)
         return nt
     end
 
-    if iterator == _next or iterator == _inext then
+    if iterator == next or iterator == inext then
         return t
     end
 
@@ -1203,7 +1204,7 @@ end
 ---@param transformer? fun(t:table):table<K,V>
 ---@return Enumerator
 local function EnumeratorCreate(iterator, transformer)
-    return _setmetatable(
+    return setmetatable(
         {
             iterator = iterator,
             transformer = transformer or false
@@ -1601,13 +1602,13 @@ function EnumeratorMeta:Count(condition)
     end
 
     if transformer then
-        if iterator == _inext then
+        if iterator == inext then
             return function(t)
                 t = transformer(t)
                 return #t
             end
         end
-        if iterator == _next then
+        if iterator == next then
             return function(t)
                 t = transformer(t)
                 return TableSize(t)
@@ -1623,10 +1624,10 @@ function EnumeratorMeta:Count(condition)
         end
     end
 
-    if iterator == _inext then
+    if iterator == inext then
         return TableGetN
     end
-    if iterator == _next then
+    if iterator == next then
         return TableSize
     end
 
@@ -1719,7 +1720,7 @@ end
 ---@return fun(t: table):V[]
 function EnumeratorMeta:ToArray()
     local iterator, transformer = self.iterator, self.transformer
-    if iterator == _inext then
+    if iterator == inext then
         return transformer or Identity
     end
     if transformer then
@@ -1765,7 +1766,7 @@ function EnumeratorMeta:ToTable(selector)
             return nt
         end
     end
-    if iterator == _next or iterator == _inext then
+    if iterator == next or iterator == inext then
         return transformer or Identity
     end
     if transformer then
@@ -1796,8 +1797,8 @@ function EnumeratorMeta:Enumerate(t)
 end
 
 return {
-    PairsEnumerator = EnumeratorMeta.Create(_next),
-    IPairsEnumerator = EnumeratorMeta.Create(_inext),
+    PairsEnumerator = EnumeratorMeta.Create(next),
+    IPairsEnumerator = EnumeratorMeta.Create(inext),
     Enumerate = EnumerableMeta.Enumerate,
 
     Enumerable = EnumerableMeta,
