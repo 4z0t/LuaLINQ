@@ -34,52 +34,45 @@ local _setmetatable = setmetatable
 local TableInsert = table.insert
 local _next = next
 
-local _inext
-if _VERSION == "Lua 5.0" then
-    _inext = ipairs
-else
-    -- There is one inconsistency between Lua versions, that makes iteration with ipairs harder.
-    -- In Lua 5.0 ipairs works 2 ways:
-    -- if only 1 argument is provided it returns 3 values: ipairs(t) -> ipairs, t, 0
-    -- if there are 2 of them it works like next does: ipairs(t, i) -> i+1, v[i+1]
-    -- and second argument can be `nil` and will be considered as 0.
-    -- In future versions of Lua it no longer works and will result an error, because
-    -- ipairs returns special function with this implementation in lbaselib.c:
-    -- ```c
-    -- static int ipairsaux (lua_State *L) {
-    --   lua_Integer i = luaL_checkinteger(L, 2);
-    --   i = luaL_intop(+, i, 1);
-    --   lua_pushinteger(L, i);
-    --   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
-    -- }
-    -- ```
-    -- In case you have ability to change it, this would be better for compatibility:
-    -- ```c
-    -- static int ipairsaux (lua_State *L) {
-    --   lua_Integer i = lua_isnil(L, 2) ? 0 : luaL_checkinteger(L, 2);
-    --   i = luaL_intop(+, i, 1);
-    --   lua_pushinteger(L, i);
-    --   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
-    -- }
-    -- ```
-    -- Otherwise this implementation is provided:
-    local _inextf = ipairs {}
-    _inext = function(t, i)
-        return _inextf(t, i or 0)
-    end
+-- There is one inconsistency between Lua versions, that makes iteration with ipairs harder.
+-- In Lua 5.0 ipairs works 2 ways:
+-- if only 1 argument is provided it returns 3 values: ipairs(t) -> ipairs, t, 0
+-- if there are 2 of them it works like next does: ipairs(t, i) -> i+1, v[i+1]
+-- and second argument can be `nil` and will be considered as 0.
+-- In future versions of Lua it no longer works and will result an error, because
+-- ipairs returns special function with this implementation in lbaselib.c:
+-- ```c
+-- static int ipairsaux (lua_State *L) {
+--   lua_Integer i = luaL_checkinteger(L, 2);
+--   i = luaL_intop(+, i, 1);
+--   lua_pushinteger(L, i);
+--   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
+-- }
+-- ```
+-- In case you have ability to change it, this would be better for compatibility:
+-- ```c
+-- static int ipairsaux (lua_State *L) {
+--   lua_Integer i = lua_isnil(L, 2) ? 0 : luaL_checkinteger(L, 2);
+--   i = luaL_intop(+, i, 1);
+--   lua_pushinteger(L, i);
+--   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
+-- }
+-- ```
+-- Otherwise this implementation is provided:
+local _inextf = ipairs {}
+local function _inext(t, i)
+    return _inextf(t, i or 0)
 end
+
 local pairs = pairs
-local TableGetN
-if _VERSION == "Lua 5.0" then
-    TableGetN = table.getn
-else
-    ---@generic T
-    ---@param t T[]
-    ---@return integer
-    TableGetN = function(t)
-        return #t
-    end
+
+---@generic T
+---@param t T[]
+---@return integer
+local function TableGetN(t)
+    return #t
 end
+
 ---@param t table
 ---@return integer
 local function TableSize(t)
@@ -810,6 +803,15 @@ function EnumeratorMeta:SelectMany(selector)
     return EnumeratorCreate(SelectManyIterator(self.iterator, self.transformer, selector))
 end
 
+---Uses given function to create new Enumerator with resulted iterator and transformer
+---@generic K,V,Arg
+---@param fn fun(iterator:(fun(t:table, k:K):K,V),transformer?:(fun(t:table):table<K,V>),...:Arg):((fun(t: table<K,V>, k?: K):K, V),(fun(t:table):table<K,V>)?)
+---@param ... Arg
+---@return Enumerator
+function EnumeratorMeta:Use(fn, ...)
+    return EnumeratorCreate(fn(self.iterator, self.transformer, ...))
+end
+
 ---Executes a callback for each element in the sequence.
 ---@generic K,V
 ---@param callback fun(value:V, key:K)
@@ -1110,7 +1112,7 @@ function EnumeratorMeta:Count(condition)
         if iterator == _inext then
             return function(t)
                 t = transformer(t)
-                return TableGetN(t)
+                return #t
             end
         end
         if iterator == _next then
@@ -1427,6 +1429,15 @@ function EnumerableMeta:SelectMany(selector)
     return self
 end
 
+---@generic K,V,Arg
+---@param fn fun(iterator:(fun(t:table, k:K):K,V),transformer?:(fun(t:table):table<K,V>),...:Arg):((fun(t: table<K,V>, k?: K):K, V),(fun(t:table):table<K,V>)?)
+---@param ... Arg
+---@return Enumerable
+function EnumerableMeta:Use(fn, ...)
+    self.iterator, self.transformer = fn(self.iterator, self.transformer, ...)
+    return self
+end
+
 ---#region Enumerable Terminators
 
 ---@generic K,V
@@ -1555,7 +1566,7 @@ function EnumerableMeta:Count(condition)
     end
 
     if iterator == _inext then
-        return TableGetN(t)
+        return #t
     end
     if iterator == _next then
         ---@diagnostic disable-next-line:return-type-mismatch
