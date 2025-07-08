@@ -111,6 +111,14 @@ end
 
 ---#region UtilityFunctions
 
+---@generic K,V
+---@param it fun(k: K):K,V
+---@param k K
+---@return K,V
+local function CallStatefulIterator(it, k)
+    return it(k)
+end
+
 ---Creates an iterator that transforms each element using a selector function or key
 ---@generic K,V,R
 ---@param iterator fun(t:table, k:K):K,V @The source iterator
@@ -341,10 +349,6 @@ local function IterateManyWithSelector(iterator, selector, outTable, outKey, inT
     end
 end
 
-local function SelectManyIt(it, k)
-    return it(k)
-end
-
 ---@generic K,V,R
 ---@param iterator fun(t:table, k:K):K,V
 ---@param transformer? fun(t:table):table<K,V>
@@ -352,7 +356,7 @@ end
 local function SelectManyIterator(iterator, transformer, selector)
     if selector then
         if transformer then
-            return SelectManyIt, function(t)
+            return CallStatefulIterator, function(t)
                 t = transformer(t)
 
                 -- context of selectMany
@@ -371,7 +375,7 @@ local function SelectManyIterator(iterator, transformer, selector)
             end
         end
 
-        return SelectManyIt, function(t)
+        return CallStatefulIterator, function(t)
             -- context of selectMany
             local outerKey = nil
             local inTable = nil
@@ -389,7 +393,7 @@ local function SelectManyIterator(iterator, transformer, selector)
     end
 
     if transformer then
-        return SelectManyIt, function(t)
+        return CallStatefulIterator, function(t)
             t = transformer(t)
 
             -- context of selectMany
@@ -408,7 +412,7 @@ local function SelectManyIterator(iterator, transformer, selector)
         end
     end
 
-    return SelectManyIt, function(t)
+    return CallStatefulIterator, function(t)
         -- context of selectMany
         local outerKey = nil
         local inTable = nil
