@@ -1889,14 +1889,15 @@ function EnumeratorMeta:ToTable(selector)
     end
 end
 
----#endregion
-
 ---Returns new Enumerable using Enumerator's iterator.
 ---@param t table
 ---@return Enumerable
 function EnumeratorMeta:Enumerate(t)
     return EnumerableCreate(t, self.iterator, self.transformer)
 end
+
+---#endregion
+
 
 return {
     PairsEnumerator = EnumeratorMeta.Create(next),
