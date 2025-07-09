@@ -368,6 +368,37 @@ local function ConcatIterator(iterator1, transformer1, second, iterator2, transf
     end
 end
 
+local function CreateIntersectIterator(first, iterator1, second, iterator2, transformer2)
+    local set = {}
+    for _, v in iterator2, transformer2(second) do
+        set[v] = true
+    end
+
+    return function(ik)
+        for k, v in iterator1, first, ik do
+            if set[v] then
+                set[v] = nil
+                return k, v
+            end
+        end
+
+        set = nil
+        return nil, nil
+    end
+end
+
+local function IntersectIterator(iterator1, transformer1, second, iterator2, transformer2)
+    if transformer1 then
+        return CallStatefulIterator, function(t)
+            return CreateIntersectIterator(transformer1(t), iterator1, second, iterator2, transformer2)
+        end
+    end
+
+    return CallStatefulIterator, function(t)
+        return CreateIntersectIterator(t, iterator1, second, iterator2, transformer2)
+    end
+end
+
 ---Creates an iterator that executes a function for each element in the source iterator without modifying the elements
 ---@generic K,V
 ---@param iterator fun(t:table, k:K):K,V @The source iterator
@@ -966,6 +997,19 @@ function EnumerableMeta:Concat(second)
             second.transformer or Identity)
     else
         self.iterator, self.transformer = ConcatIterator(self.iterator, self.transformer, second, next, Identity)
+    end
+    return self
+end
+
+---@param second table|Enumerable
+---@return Enumerable
+function EnumerableMeta:Intersect(second)
+    if IsEnumerable(second) then
+        ---@cast second Enumerable
+        self.iterator, self.transformer = IntersectIterator(self.iterator, self.transformer, second.t, second.iterator,
+            second.transformer or Identity)
+    else
+        self.iterator, self.transformer = IntersectIterator(self.iterator, self.transformer, second, next, Identity)
     end
     return self
 end
