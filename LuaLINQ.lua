@@ -236,6 +236,7 @@ local function CreateDistinctIterator(iterator, t)
                 return k, v
             end
         end
+        seen = nil
         return nil, nil
     end
 end
@@ -274,6 +275,7 @@ local function CreateDistinctByIterator(keySelector, iterator, t)
                 return k, v
             end
         end
+        seen = nil
         return nil, nil
     end
 end
