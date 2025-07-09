@@ -368,9 +368,9 @@ local function ConcatIterator(iterator1, transformer1, second, iterator2, transf
     end
 end
 
-local function CreateIntersectIterator(first, iterator1, second, iterator2, transformer2)
+local function CreateIntersectIterator(first, iterator1, second, iterator2)
     local set = {}
-    for _, v in iterator2, transformer2(second) do
+    for _, v in iterator2, second do
         set[v] = true
     end
 
@@ -390,12 +390,12 @@ end
 local function IntersectIterator(iterator1, transformer1, second, iterator2, transformer2)
     if transformer1 then
         return CallStatefulIterator, function(t)
-            return CreateIntersectIterator(transformer1(t), iterator1, second, iterator2, transformer2)
+            return CreateIntersectIterator(transformer1(t), iterator1, transformer2(second), iterator2)
         end
     end
 
     return CallStatefulIterator, function(t)
-        return CreateIntersectIterator(t, iterator1, second, iterator2, transformer2)
+        return CreateIntersectIterator(t, iterator1, transformer2(second), iterator2)
     end
 end
 
