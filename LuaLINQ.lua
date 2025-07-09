@@ -220,36 +220,38 @@ local function KeysIterator(iterator, transformer)
     end, transformer
 end
 
+
+---@generic T,K,V
+---@param iterator fun(t:T, k:K):K,V
+---@param t T
+---@return fun(k:K):K,V
+local function CreateDistinctIterator(iterator, t)
+    local seen = {}
+    return function(sk)
+        for k, v in iterator, t, sk do
+            if not seen[v] then
+                seen[v] = true
+                return k, v
+            end
+        end
+        return nil, nil
+    end
+end
+
 ---Creates an iterator that yields only distinct elements from the source iterator, keeping the original order
 ---@generic K,V
 ---@param iterator fun(t:table, k:K):K,V @The source iterator
 ---@param transformer? fun(t:table):table<K,V> @Optional transformer function
 ---@return fun(table: V[], i?: integer):integer, V @Iterator function that yields distinct elements
 ---@return fun(t:table):V[] @Transformer function that returns array of distinct elements
-local function DistinctTransformer(iterator, transformer)
+local function DistinctIterator(iterator, transformer)
     if transformer then
-        return inext, function(t)
-            local nt = {}
-            local nta = {}
-            for _, v in iterator, transformer(t) do
-                if not nt[v] then
-                    TableInsert(nta, v)
-                    nt[v] = true
-                end
-            end
-            return nta
+        return CallStatefulIterator, function(t)
+            return CreateDistinctIterator(iterator, transformer(t))
         end
     end
-    return inext, function(t)
-        local nt = {}
-        local nta = {}
-        for _, v in iterator, t do
-            if not nt[v] then
-                TableInsert(nta, v)
-                nt[v] = true
-            end
-        end
-        return nta
+    return CallStatefulIterator, function(t)
+        return CreateDistinctIterator(iterator, t)
     end
 end
 
@@ -814,7 +816,7 @@ end
 
 ---@return Enumerable
 function EnumerableMeta:Distinct()
-    self.iterator, self.transformer = DistinctTransformer(self.iterator, self.transformer)
+    self.iterator, self.transformer = DistinctIterator(self.iterator, self.transformer)
     return self
 end
 
@@ -1292,7 +1294,7 @@ end
 ---Transforms the sequence into an array of distinct elements.
 ---@return Enumerator
 function EnumeratorMeta:Distinct()
-    return EnumeratorCreate(DistinctTransformer(self.iterator, self.transformer))
+    return EnumeratorCreate(DistinctIterator(self.iterator, self.transformer))
 end
 
 ---Executes a callback for each element in the sequence.
