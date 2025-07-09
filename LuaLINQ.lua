@@ -227,6 +227,8 @@ end
 ---@return fun(k:K):K,V
 local function CreateDistinctIterator(iterator, t)
     local seen = {}
+    ---@generic K
+    ---@param sk K
     return function(sk)
         for k, v in iterator, t, sk do
             if not seen[v] then
@@ -254,6 +256,39 @@ local function DistinctIterator(iterator, transformer)
         return CreateDistinctIterator(iterator, t)
     end
 end
+
+---@generic T,K,V,R
+---@param keySelector fun(v:V):R
+---@param iterator fun(t:T, k:K):K,V
+---@param t T
+---@return fun(k:K):K,V
+local function CreateDistinctByIterator(keySelector, iterator, t)
+    local seen = {}
+    ---@generic K
+    ---@param sk K
+    return function(sk)
+        for k, v in iterator, t, sk do
+            local key = keySelector(v)
+            if not seen[key] then
+                seen[key] = true
+                return k, v
+            end
+        end
+        return nil, nil
+    end
+end
+
+local function DistinctByIterator(iterator, transformer, keySelector)
+    if transformer then
+        return CallStatefulIterator, function(t)
+            return CreateDistinctByIterator(iterator, transformer(t), keySelector)
+        end
+    end
+    return CallStatefulIterator, function(t)
+        return CreateDistinctByIterator(iterator, t, keySelector)
+    end
+end
+
 
 ---Creates an iterator that executes a function for each element in the source iterator without modifying the elements
 ---@generic K,V
@@ -733,7 +768,7 @@ end
 ---@class Enumerable
 ---@field t table
 ---@field iterator IteratorFunction
----@field transformer (fun(t:table):table)
+---@field transformer? (fun(t:table):table)
 local EnumerableMeta = {}
 EnumerableMeta.__index = EnumerableMeta
 
@@ -817,6 +852,17 @@ end
 ---@return Enumerable
 function EnumerableMeta:Distinct()
     self.iterator, self.transformer = DistinctIterator(self.iterator, self.transformer)
+    return self
+end
+
+---@generic V,K
+---@param keySelector fun(v:V):K
+---@return Enumerable
+function EnumerableMeta:DistinctBy(keySelector)
+    if keySelector == nil then
+        error("Enumerable:DistinctBy: keySelector is required")
+    end
+    self.iterator, self.transformer = DistinctByIterator(self.iterator, self.transformer, keySelector)
     return self
 end
 
@@ -1295,6 +1341,16 @@ end
 ---@return Enumerator
 function EnumeratorMeta:Distinct()
     return EnumeratorCreate(DistinctIterator(self.iterator, self.transformer))
+end
+
+---@generic V,K
+---@param keySelector fun(v:V):K
+---@return Enumerator
+function EnumeratorMeta:DistinctBy(keySelector)
+    if keySelector == nil then
+        error("Enumerator:DistinctBy: keySelector is required")
+    end
+    return EnumeratorCreate(DistinctByIterator(self.iterator, self.transformer, keySelector))
 end
 
 ---Executes a callback for each element in the sequence.
