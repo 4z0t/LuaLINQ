@@ -278,17 +278,93 @@ local function CreateDistinctByIterator(keySelector, iterator, t)
     end
 end
 
+---!TODO
+---@generic K,V
+---@param iterator fun(t:table, k:K):K,V
+---@param transformer? fun(t:table):table<K,V>
+---@param keySelector fun(v:V):K
+---@return fun(table: V[], i?: integer):integer, V
+---@return fun(t:table):V[]
 local function DistinctByIterator(iterator, transformer, keySelector)
     if transformer then
         return CallStatefulIterator, function(t)
-            return CreateDistinctByIterator(iterator, transformer(t), keySelector)
+            return CreateDistinctByIterator(keySelector, iterator, transformer(t))
         end
     end
     return CallStatefulIterator, function(t)
-        return CreateDistinctByIterator(iterator, t, keySelector)
+        return CreateDistinctByIterator(keySelector, iterator, t)
     end
 end
 
+
+local function CreateUnionIterator(first, iterator1, second, iterator2, transformer2)
+    local seen = {}
+    local iterator, source, isSecond = iterator1, first, false
+
+    return function(ik)
+        repeat
+            for k, v in iterator, source, ik do
+                if not seen[v] then
+                    seen[v] = true
+                    return k, v
+                end
+            end
+            if isSecond then
+                break
+            end
+            iterator, source, isSecond, ik = iterator2, transformer2(second), true, nil
+        until false
+
+        iterator, source, seen = nil, nil, nil
+        return nil, nil
+    end
+end
+
+
+local function UnionIterator(iterator1, transformer1, second, iterator2, transformer2)
+    if transformer1 then
+        return CallStatefulIterator, function(t)
+            return CreateUnionIterator(transformer1(t), iterator1, second, iterator2, transformer2)
+        end
+    end
+
+    return CallStatefulIterator, function(t)
+        return CreateUnionIterator(t, iterator1, second, iterator2, transformer2)
+    end
+end
+
+
+local function CreateConcatIterator(first, iterator1, second, iterator2, transformer2)
+    local iterator, source, isSecond = iterator1, first, false
+
+    return function(ik)
+        repeat
+            for k, v in iterator, source, ik do
+                return k, v
+            end
+            if isSecond then
+                break
+            end
+            iterator, source, isSecond, ik = iterator2, transformer2(second), true, nil
+        until false
+
+        iterator, source = nil, nil
+        return nil, nil
+    end
+end
+
+
+local function ConcatIterator(iterator1, transformer1, second, iterator2, transformer2)
+    if transformer1 then
+        return CallStatefulIterator, function(t)
+            return CreateConcatIterator(transformer1(t), iterator1, second, iterator2, transformer2)
+        end
+    end
+
+    return CallStatefulIterator, function(t)
+        return CreateConcatIterator(t, iterator1, second, iterator2, transformer2)
+    end
+end
 
 ---Creates an iterator that executes a function for each element in the source iterator without modifying the elements
 ---@generic K,V
@@ -863,6 +939,32 @@ function EnumerableMeta:DistinctBy(keySelector)
         error("Enumerable:DistinctBy: keySelector is required")
     end
     self.iterator, self.transformer = DistinctByIterator(self.iterator, self.transformer, keySelector)
+    return self
+end
+
+---@param second table|Enumerable
+---@return Enumerable
+function EnumerableMeta:Union(second)
+    if IsEnumerable(second) then
+        ---@cast second Enumerable
+        self.iterator, self.transformer = UnionIterator(self.iterator, self.transformer, second.t, second.iterator,
+            second.transformer or Identity)
+    else
+        self.iterator, self.transformer = UnionIterator(self.iterator, self.transformer, second, next, Identity)
+    end
+    return self
+end
+
+---@param second table|Enumerable
+---@return Enumerable
+function EnumerableMeta:Concat(second)
+    if IsEnumerable(second) then
+        ---@cast second Enumerable
+        self.iterator, self.transformer = ConcatIterator(self.iterator, self.transformer, second.t, second.iterator,
+            second.transformer or Identity)
+    else
+        self.iterator, self.transformer = ConcatIterator(self.iterator, self.transformer, second, next, Identity)
+    end
     return self
 end
 
