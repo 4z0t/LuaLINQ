@@ -220,16 +220,18 @@ local function KeysIterator(iterator, transformer)
     end, transformer
 end
 
-
 ---@generic T,K,V
 ---@param iterator fun(t:T, k:K):K,V
 ---@param t T
 ---@return fun(k:K):K,V
 local function CreateDistinctIterator(iterator, t)
-    local seen = {}
+    ---@generic V
+    ---@type table<V, boolean>?
+    local seen
     ---@generic K
     ---@param sk K
     return function(sk)
+        seen = seen or {}
         for k, v in iterator, t, sk do
             if not seen[v] then
                 seen[v] = true
@@ -264,10 +266,13 @@ end
 ---@param t T
 ---@return fun(k:K):K,V
 local function CreateDistinctByIterator(keySelector, iterator, t)
-    local seen = {}
+    ---@generic R
+    ---@type table<R, boolean>?
+    local seen
     ---@generic K
     ---@param sk K
     return function(sk)
+        seen = seen or {}
         for k, v in iterator, t, sk do
             local key = keySelector(v)
             if not seen[key] then
@@ -298,12 +303,11 @@ local function DistinctByIterator(iterator, transformer, keySelector)
     end
 end
 
-
 local function CreateUnionIterator(first, iterator1, second, iterator2, transformer2)
-    local seen = {}
-    local iterator, source, isSecond = iterator1, first, false
+    local iterator, source, isSecond, seen = iterator1, first, false, nil
 
     return function(ik)
+        seen = seen or {}
         repeat
             for k, v in iterator, source, ik do
                 if not seen[v] then
@@ -322,7 +326,6 @@ local function CreateUnionIterator(first, iterator1, second, iterator2, transfor
     end
 end
 
-
 local function UnionIterator(iterator1, transformer1, second, iterator2, transformer2)
     if transformer1 then
         return CallStatefulIterator, function(t)
@@ -334,7 +337,6 @@ local function UnionIterator(iterator1, transformer1, second, iterator2, transfo
         return CreateUnionIterator(t, iterator1, second, iterator2, transformer2)
     end
 end
-
 
 local function CreateConcatIterator(first, iterator1, second, iterator2, transformer2)
     local iterator, source, isSecond = iterator1, first, false
@@ -354,7 +356,6 @@ local function CreateConcatIterator(first, iterator1, second, iterator2, transfo
         return nil, nil
     end
 end
-
 
 local function ConcatIterator(iterator1, transformer1, second, iterator2, transformer2)
     if transformer1 then
