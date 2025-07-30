@@ -771,56 +771,52 @@ local function ReduceTerminator(iterator, transformer, reducer, initial)
     end
 end
 
+---@generic V,R
+---@param selector fun(value:V):R
+---@param comparer? fun(left: R, right: R): boolean
+local function AscendingSortFunction(selector, comparer)
+    if comparer then
+        return function(a, b)
+            return comparer(selector(a), selector(b))
+        end
+    end
+    return function(a, b)
+        return selector(a) < selector(b)
+    end
+end
+
+---@generic V,R
+---@param selector fun(value:V):R
+---@param comparer? fun(left: R, right: R): boolean
+local function DescendingSortFunction(selector, comparer)
+    if comparer then
+        return function(a, b)
+            return not comparer(selector(b), selector(a))
+        end
+    end
+    return function(a, b)
+        return selector(b) > selector(a)
+    end
+end
+
 ---@generic K,V
 ---@param iterator fun(t:table, k:K):K,V
 ---@param transformer? fun(t:table):table<K,V>
----@param comparator? fun(left: V, right: V): boolean
+---@param sortFunc fun(left: V, right: V): boolean
 ---@return fun(table: V[], i?: integer):integer, V
 ---@return fun(t:table):V[]
-local function SortTransformer(iterator, transformer, comparator)
+local function OrderByTransformer(iterator, transformer, sortFunc)
     if iterator == inext then
-        if comparator then
-            if transformer then
-                return inext, function(t)
-                    local nt = transformer(t)
-                    TableSort(nt, comparator)
-                    return nt
-                end
-            end
-            return inext, function(t)
-                TableSort(t, comparator)
-                return t
-            end
-        end
         if transformer then
             return inext, function(t)
                 local nt = transformer(t)
-                TableSort(nt)
+                TableSort(nt, sortFunc)
                 return nt
             end
         end
-        return inext, TableSortF
-    end
-
-    if comparator then
-        if transformer then
-            return inext, function(t)
-                local nt = {}
-                for _, v in iterator, transformer(t) do
-                    TableInsert(nt, v)
-                end
-                TableSort(nt, comparator)
-                return nt
-            end
-        end
-
         return inext, function(t)
-            local nt = {}
-            for _, v in iterator, t do
-                TableInsert(nt, v)
-            end
-            TableSort(nt, comparator)
-            return nt
+            TableSort(t, sortFunc)
+            return t
         end
     end
 
@@ -830,7 +826,7 @@ local function SortTransformer(iterator, transformer, comparator)
             for _, v in iterator, transformer(t) do
                 TableInsert(nt, v)
             end
-            TableSort(nt)
+            TableSort(nt, sortFunc)
             return nt
         end
     end
@@ -840,7 +836,7 @@ local function SortTransformer(iterator, transformer, comparator)
         for _, v in iterator, t do
             TableInsert(nt, v)
         end
-        TableSort(nt)
+        TableSort(nt, sortFunc)
         return nt
     end
 end
@@ -1043,11 +1039,23 @@ function EnumerableMeta:GroupBy(selector)
     return self
 end
 
----@generic V
----@param comparer? fun(left:V, right:V):boolean
+---@generic V,R
+---@param selector fun(value: V):R
+---@param comparer? fun(left:R, right:R):boolean
 ---@return Enumerable
-function EnumerableMeta:Sort(comparer)
-    self.iterator, self.transformer = SortTransformer(self.iterator, self.transformer, comparer)
+function EnumerableMeta:OrderBy(selector, comparer)
+    self.iterator, self.transformer = OrderByTransformer(self.iterator, self.transformer,
+        AscendingSortFunction(selector, comparer))
+    return self
+end
+
+---@generic V,R
+---@param selector fun(value: V):R
+---@param comparer? fun(left:R, right:R):boolean
+---@return Enumerable
+function EnumerableMeta:OrderByDescending(selector, comparer)
+    self.iterator, self.transformer = OrderByTransformer(self.iterator, self.transformer,
+        DescendingSortFunction(selector, comparer))
     return self
 end
 
@@ -1530,11 +1538,22 @@ function EnumeratorMeta:GroupBy(selector)
     return EnumeratorCreate(GroupByTransformer(self.iterator, self.transformer, selector))
 end
 
----@generic V
----@param comparer? fun(left:V, right:V):boolean
+---@generic V,R
+---@param selector fun(value: V):R
+---@param comparer? fun(left:R, right:R):boolean
 ---@return Enumerator
-function EnumeratorMeta:Sort(comparer)
-    return EnumeratorCreate(SortTransformer(self.iterator, self.transformer, comparer))
+function EnumeratorMeta:OrderBy(selector, comparer)
+    return EnumeratorCreate(OrderByTransformer(self.iterator, self.transformer,
+        AscendingSortFunction(selector, comparer)))
+end
+
+---@generic V,R
+---@param selector fun(value: V):R
+---@param comparer? fun(left:R, right:R):boolean
+---@return Enumerator
+function EnumeratorMeta:OrderByDescending(selector, comparer)
+    return EnumeratorCreate(OrderByTransformer(self.iterator, self.transformer,
+        DescendingSortFunction(selector, comparer)))
 end
 
 ---@return Enumerator
