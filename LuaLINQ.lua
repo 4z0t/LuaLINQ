@@ -95,14 +95,6 @@ local function Identity(v)
     return v
 end
 
----@generic T
----@param t T[]
----@return T[]
-local function TableSortF(t)
-    TableSort(t)
-    return t
-end
-
 ---#region UtilityFunctions
 
 ---@generic K,V
