@@ -193,7 +193,7 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:All(condition?)`                        | Checks if all elements match condition                                                     |
 | `:First(condition?)`                      | Returns first element that matches condition                                               |
 | `:Last(condition?)`                       | Returns last element that matches condition                                                |
-| `:Reduce(reducer, initial)`               | Applies a function to each element and accumulates the result                              |
+| `:Aggregate(func, initial)`               | Applies a function to each element and accumulates the result                              |
 | `:Average()`                              | Calculates average of numeric sequence                                                     |
 | `:Count(condition?)`                      | Counts elements matching condition                                                         |
 | `:Sum()`                                  | Calculates sum of numeric sequence                                                         |
@@ -229,7 +229,7 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:Last(condition?)`                       | Returns last element that matches condition                                                |
 | `:Average()`                              | Calculates average of numeric sequence                                                     |
 | `:Count(condition?)`                      | Counts elements matching condition                                                         |
-| `:Reduce(reducer, initial)`               | Applies a function to each element and accumulates the result                              |
+| `:Aggregate(func, initial)`               | Applies a function to each element and accumulates the result                              |
 | `:Sum()`                                  | Calculates sum of numeric sequence                                                         |
 | `:Contains(value)`                        | Checks if sequence contains a specific value                                               |
 | `:Min(comparer?)`                         | Finds minimum element                                                                      |
