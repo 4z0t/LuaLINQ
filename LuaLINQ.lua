@@ -218,12 +218,10 @@ do
         end
         return self.iterator, t
     end
-
 end
 ---#endregion
 ---#region Where
 do
-
     ---Creates an iterator that filters elements based on a condition
     ---@generic K,V
     ---@param iterator fun(t:table, k:K):K,V @The source iterator
@@ -265,7 +263,6 @@ do
         end
         return EnumeratorCreate(WhereIterator(self.iterator, self.transformer, condition))
     end
-
 end
 ---#endregion
 ---#region Select
@@ -326,7 +323,6 @@ end
 ---#endregion
 ---#region Keys
 do
-
     ---Creates an iterator that yields only the keys from the source iterator
     ---@generic K,V
     ---@param iterator fun(t:table, k:K):K,V @The source iterator
@@ -351,7 +347,6 @@ do
     function EnumeratorMeta:Keys()
         return EnumeratorCreate(KeysIterator(self.iterator, self.transformer))
     end
-
 end
 ---#endregion
 ---#region Distinct
@@ -407,7 +402,6 @@ do
     function EnumeratorMeta:Distinct()
         return EnumeratorCreate(DistinctIterator(self.iterator, self.transformer))
     end
-
 end
 ---#endregion
 ---#region DistinctBy
@@ -475,7 +469,6 @@ do
         end
         return EnumeratorCreate(DistinctByIterator(self.iterator, self.transformer, keySelector))
     end
-
 end
 ---#endregion
 ---#region Union
@@ -527,7 +520,6 @@ do
         end
         return self
     end
-
 end
 ---#endregion
 ---#region Concat
@@ -669,7 +661,6 @@ do
         end
         return EnumeratorCreate(ForeachIterator(self.iterator, self.transformer, func))
     end
-
 end
 ---#endregion
 ---#region Reverse
@@ -725,7 +716,6 @@ do
     function EnumeratorMeta:Reverse()
         return EnumeratorCreate(ReverseTransformer(self.iterator, self.transformer))
     end
-
 end
 ---#endregion
 ---#region GroupBy
@@ -1065,7 +1055,6 @@ do
     function EnumeratorMeta:SelectMany(selector)
         return EnumeratorCreate(SelectManyIterator(self.iterator, self.transformer, selector))
     end
-
 end
 ---#endregion
 ---#region Use
@@ -1087,7 +1076,6 @@ do
     function EnumeratorMeta:Use(fn, ...)
         return EnumeratorCreate(fn(self.iterator, self.transformer, ...))
     end
-
 end
 ---#endregion
 ---#region AsSet
@@ -1178,18 +1166,12 @@ end
 ---#endregion
 ---#region First
 do
-
     ---@generic K,V
     ---@param condition fun(value:V, key:K):boolean
     ---@return V?
     function EnumerableMeta:First(condition)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
-
         if condition then
-            for k, v in iterator, t do
+            for k, v in EnumerableForIteration(self) do
                 if condition(v, k) then
                     return v
                 end
@@ -1197,7 +1179,7 @@ do
             return nil
         end
 
-        for _, v in iterator, t do
+        for _, v in EnumerableForIteration(self) do
             return v
         end
         return nil
@@ -1254,14 +1236,9 @@ do
     ---@param condition fun(value:V, key:K):boolean
     ---@return V?
     function EnumerableMeta:Last(condition)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
-
         if condition then
             local result = nil
-            for k, v in iterator, t do
+            for k, v in EnumerableForIteration(self) do
                 if condition(v, k) then
                     result = v
                 end
@@ -1270,7 +1247,7 @@ do
         end
 
         local result = nil
-        for _, v in iterator, t do
+        for _, v in EnumerableForIteration(self) do
             result = v
         end
         return result
@@ -1330,13 +1307,8 @@ do
     ---@generic R
     ---@return R?
     function EnumerableMeta:Average()
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
-
         local r, n = 0, 0
-        for _, v in iterator, t do
+        for _, v in EnumerableForIteration(self) do
             r = r + v
             n = n + 1
         end
@@ -1379,7 +1351,6 @@ end
 ---#endregion
 ---#region Aggregate
 do
-
     ---@generic K,V,R
     ---@param iterator fun(t:table, k:K):K,V
     ---@param transformer? fun(t:table):table<K,V>
@@ -1413,13 +1384,9 @@ do
         if func == nil then
             error("Enumerable:Aggregate: func is required")
         end
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
 
         local r = initial
-        for k, v in iterator, t do
+        for k, v in EnumerableForIteration(self) do
             r = func(r, v, k)
         end
         return r
@@ -1443,10 +1410,7 @@ do
     ---@param condition? fun(value:V, key:K):boolean
     ---@return integer
     function EnumerableMeta:Count(condition)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
 
         if condition then
             local n = 0
@@ -1583,7 +1547,6 @@ end
 ---#endregion
 ---#region Contains
 do
-
     ---@generic K,V
     ---@param value V
     ---@return K?
@@ -1683,10 +1646,7 @@ do
     ---@param comparer? fun(left:V, right:V):boolean
     ---@return V?
     function EnumerableMeta:Min(comparer)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
 
         if comparer then
             local minValue = nil
@@ -1713,12 +1673,10 @@ do
     function EnumeratorMeta:Min(comparer)
         return MinTerminator(self.iterator, self.transformer, comparer)
     end
-
 end
 ---#endregion
 ---#region Max
 do
-
     ---@generic K,V
     ---@param iterator fun(t:table, k:K):K,V
     ---@param transformer? fun(t:table):table<K,V>
@@ -1774,10 +1732,7 @@ do
     ---@param comparer? fun(left:V, right:V):boolean
     ---@return V?
     function EnumerableMeta:Max(comparer)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
 
         if comparer then
             local maxValue = nil
@@ -1812,10 +1767,8 @@ do
     ---@param condition? fun(value:V, key:K):boolean
     ---@return boolean
     function EnumerableMeta:All(condition)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
+
         if condition then
             for k, v in iterator, t do
                 if not condition(v, k) then
@@ -1879,7 +1832,6 @@ do
             return true
         end
     end
-
 end
 ---#endregion
 ---#region Any
@@ -1888,10 +1840,8 @@ do
     ---@param condition? fun(value:V, key:K):boolean
     ---@return boolean
     function EnumerableMeta:Any(condition)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
+
         if condition then
             for k, v in iterator, t do
                 if condition(v, k) then
@@ -1955,19 +1905,14 @@ do
             return false
         end
     end
-
 end
 ---#endregion
 ---#region ToArray
 do
-
     ---@generic V
     ---@return V[]
     function EnumerableMeta:ToArray()
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
 
         if iterator == inext then
             return t
@@ -2012,11 +1957,7 @@ do
     ---@param selector? fun(key:K, value:V):(KR,KV)
     ---@return table
     function EnumerableMeta:ToTable(selector)
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-
-        if transformer then
-            t = transformer(t)
-        end
+        local iterator, t = EnumerableForIteration(self)
 
         if selector then
             local nt = {}
@@ -2083,7 +2024,6 @@ do
             return nt
         end
     end
-
 end
 ---#endregion
 ---#region SequenceEqual
