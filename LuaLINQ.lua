@@ -617,6 +617,54 @@ do
     end
 end
 ---#endregion
+---#region Except
+do
+    local function CreateExceptIterator(first, iterator1, second, iterator2)
+        local set = {}
+        for _, v in iterator2, second do
+            set[v] = true
+        end
+
+        return function(ik)
+            for k, v in iterator1, first, ik do
+                if not set[v] then
+                    set[v] = true
+                    return k, v
+                end
+            end
+
+            set = nil
+            return nil, nil
+        end
+    end
+
+    local function ExceptIterator(iterator1, transformer1, second, iterator2, transformer2)
+        if transformer1 then
+            return CallStatefulIterator, function(t)
+                return CreateExceptIterator(transformer1(t), iterator1, transformer2(second), iterator2)
+            end
+        end
+
+        return CallStatefulIterator, function(t)
+            return CreateExceptIterator(t, iterator1, transformer2(second), iterator2)
+        end
+    end
+
+    ---@param second table|Enumerable
+    ---@return Enumerable
+    function EnumerableMeta:Except(second)
+        if IsEnumerable(second) then
+            ---@cast second Enumerable
+            self.iterator, self.transformer = ExceptIterator(self.iterator, self.transformer, second.t,
+                second.iterator,
+                second.transformer or Identity)
+        else
+            self.iterator, self.transformer = ExceptIterator(self.iterator, self.transformer, second, next, Identity)
+        end
+        return self
+    end
+end
+---#endregion
 ---#region Foreach
 do
     ---Creates an iterator that executes a function for each element in the source iterator without modifying the elements
