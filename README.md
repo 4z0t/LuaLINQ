@@ -184,7 +184,6 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:GroupBy(selector)`                      | Groups elements by key selector                                                            |
 | `:OrderBy(selector, comparer?)`           | Sorts elements in sequence                                                                 |
 | `:OrderByDescending(selector, comparer?)` | Sorts elements in sequence in descending order                                             |
-| `:AsSet()`                                | Returns set of elements                                                                    |
 | `:SelectMany(selector?)`                  | Projects each element of a sequence and flattens the resulting sequences into one sequence |
 | `:Execute(func)`                          | Executes a function for each element                                                       |
 | `:Min(comparer?)`                         | Finds minimum element                                                                      |
@@ -201,6 +200,7 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:ToFunction()`                           | Returns function that returns iterator and transformed table for iteration within for loop |
 | `:ToIterator()`                           | Returns iterator with scoped table for iteration within for loop                           |
 | `:ToArray()`                              | Converts sequence to array                                                                 |
+| `:ToSet()`                                | Returns set of elements                                                                    |
 | `:ToTable(selector?)`                     | Converts sequence to table with optional key-value selector                                |
 
 ## Enumerable
@@ -221,7 +221,6 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:GroupBy(selector)`                      | Groups elements by key selector                                                            |
 | `:OrderBy(selector, comparer?)`           | Sorts elements in sequence                                                                 |
 | `:OrderByDescending(selector, comparer?)` | Sorts elements in sequence in descending order                                             |
-| `:AsSet()`                                | Returns set of elements                                                                    |
 | `:SelectMany(selector?)`                  | Projects each element of a sequence and flattens the resulting sequences into one sequence |
 | `:Execute(func)`                          | Executes a function for each element                                                       |
 | `:Cache()`                                | Creates new Enumerable with cached table after transformation                              |
@@ -237,4 +236,5 @@ local result = EnumerableCreate({1,2,3,4,5,6,7,8,9,10})
 | `:All(condition?)`                        | Checks if all elements match condition                                                     |
 | `:Any(condition?)`                        | Checks if any element matches condition                                                    |
 | `:ToArray()`                              | Converts sequence to array                                                                 |
+| `:ToSet()`                                | Returns set of elements                                                                    |
 | `:ToTable(selector?)`                     | Converts sequence to table with optional key-value selector                                |
