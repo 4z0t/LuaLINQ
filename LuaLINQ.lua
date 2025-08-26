@@ -1520,14 +1520,8 @@ end
 do
     ---@return number
     function EnumerableMeta:Sum()
-        local t, iterator, transformer = self.t, self.iterator, self.transformer
-
-        if transformer then
-            t = transformer(t)
-        end
-
         local s = 0
-        for _, v in iterator, t do
+        for _, v in EnumerableForIteration(self) do
             s = s + v
         end
         return s
@@ -2041,10 +2035,8 @@ do
     ---@generic V
     ---@return table<V, boolean>
     function EnumerableMeta:ToSet()
-        local iterator, t = EnumerableForIteration(self)
-
         local nt = {}
-        for _, v in iterator, t do
+        for _, v in EnumerableForIteration(self) do
             nt[v] = true
         end
         return nt
