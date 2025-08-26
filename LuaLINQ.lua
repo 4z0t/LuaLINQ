@@ -2074,6 +2074,44 @@ do
     end
 end
 ---#endregion
+---#region ToSet
+do
+    ---@generic V
+    ---@return table<V, boolean>
+    function EnumerableMeta:ToSet()
+        local iterator, t = EnumerableForIteration(self)
+
+        local nt = {}
+        for _, v in iterator, t do
+            nt[v] = true
+        end
+        return nt
+    end
+
+    ---@generic V
+    ---@return fun(t:table):table<V, boolean>
+    function EnumeratorMeta:ToSet()
+        local iterator, transformer = self.iterator, self.transformer
+        if transformer then
+            return function(t)
+                local nt = {}
+                for _, v in iterator, transformer(t) do
+                    nt[v] = true
+                end
+                return nt
+            end
+        end
+
+        return function(t)
+            local nt = {}
+            for _, v in iterator, t do
+                nt[v] = true
+            end
+            return nt
+        end
+    end
+end
+---#endregion
 ---#region SequenceEqual
 do
     ---@generic T,K,V
